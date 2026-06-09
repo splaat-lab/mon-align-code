@@ -7,10 +7,14 @@ import csv
 import re
 import numpy as np
 from praatio import textgrid as tgio
+from splaat.plot.combined import plot_file
+import matplotlib.pyplot as plt
 
 root_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 data_dir = r"C:\Users\micha\Documents\Data\benchmarks\librispeech_alignment_benchmark"
+
+export_directory = r"D:\Data\experiments\mon-align"
 
 if __name__ == "__main__":
     vowel_pattern = re.compile(r"^[AIEUO].*")
@@ -229,6 +233,24 @@ if __name__ == "__main__":
                         silence_intensity_sum += intensity[begin_index:end_index].sum()
                     else:
                         no_surrounding_silence = True
+                if i == 1:
+                    output_directory = os.path.join(export_directory, "utterance_initial", f"sil_{following_phone}")
+                    os.makedirs(output_directory, exist_ok=True)
+                    start = max(phone_intervals[i].end - 0.2, 0)
+                    end = min(phone_intervals[i].end + 0.2, duration)
+                    output_path = os.path.join(output_directory, f"{file_name}.png")
+                    fig = plot_file(file_path, tg_path, start=start, end=end)
+                    fig.savefig(output_path, bbox_inches = "tight")
+                    plt.close()
+                if i == len(phone_intervals) - 1:
+                    output_directory = os.path.join(export_directory, "utterance_final", f"{previous_phone}_sil")
+                    os.makedirs(output_directory, exist_ok=True)
+                    start = max(phone_intervals[i].start - 0.2, 0)
+                    end = min(phone_intervals[i].start + 0.2, duration)
+                    output_path = os.path.join(output_directory, f"{file_name}.png")
+                    fig = plot_file(file_path, tg_path, start=start, end=end)
+                    fig.savefig(output_path, bbox_inches = "tight")
+                    plt.close()
             if no_surrounding_silence:
                 no_surrounding_silence_count += 1
             data[stem]['no_surrounding_silence'] = no_surrounding_silence
