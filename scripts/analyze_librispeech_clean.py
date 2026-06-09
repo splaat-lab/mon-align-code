@@ -70,6 +70,32 @@ if __name__ == "__main__":
             silence_duration = 0
             s_frame_count = 0
             s_intensity_sum = 0
+            primary_environment_count = 0
+            secondary_environment_count = 0
+            count_ordering = {
+                "UWUH_L": 1,
+                "vowel_R": 1,
+                "W_UWUH": 1,
+                "vowel_vowel": 1,
+                "sil_HH": 1,
+                "sil_F": 1,
+                "sil_TH": 1,
+                "F_sil": 1,
+                "V_sil": 1,
+                "TH_sil": 1,
+                "sil_DH": 2,
+                "sil_V": 2,
+                "vowel_L": 2,
+                "Y_UWUH": 2,
+                "Y_vowel": 2,
+                "W_vowel": 2,
+                "L_vowel": 2,
+                "R_vowel": 2,
+                "vowel_T_vowel": 2,
+                "vowel_D_vowel": 2,
+                "vowel_sil": 2,
+                "DH_sil": 2,
+            }
             for i, pi in enumerate(phone_intervals):
                 phone = pi.label
                 if phone == 'S':
@@ -98,26 +124,35 @@ if __name__ == "__main__":
                 if phone_is_vowel and following_phone == 'L':
                     if phone_is_high_back_vowel:
                         counts["UWUH_L"] += 1
+                        primary_environment_count += 1
                     else:
                         counts["vowel_L"] += 1
+                        secondary_environment_count += 1
                 if phone_is_vowel and following_phone == 'R':
                     counts["vowel_R"] += 1
+                    primary_environment_count += 1
                     v = re.sub(r'\d', "", phone)
                     counts[f"{v}_R"] += 1
                 if phone_is_vowel and previous_phone == 'Y':
                     if phone_is_high_back_vowel:
                         counts["Y_UWUH"] += 1
+                        secondary_environment_count += 1
                     else:
                         counts["Y_vowel"] += 1
+                        secondary_environment_count += 1
                 if phone_is_vowel and previous_phone == 'W':
                     if phone_is_high_back_vowel:
                         counts["W_UWUH"] += 1
+                        primary_environment_count += 1
                     else:
                         counts["W_vowel"] += 1
+                        secondary_environment_count += 1
                 if phone_is_vowel and previous_phone == 'L':
                     counts["L_vowel"] += 1
+                    secondary_environment_count += 1
                 if phone_is_vowel and previous_phone == 'R':
                     counts["R_vowel"] += 1
+                    secondary_environment_count += 1
 
                 # Stop things
                 if phone in voiceless_stops and previous_phone == 'sil':
@@ -130,15 +165,19 @@ if __name__ == "__main__":
                     counts["vowel_BG_vowel"] += 1
                 if previous_is_vowel and following_is_vowel and phone == 'T':
                     counts["vowel_T_vowel"] += 1
+                    secondary_environment_count += 1
                 if previous_is_vowel and following_is_vowel and phone == 'D':
                     counts["vowel_D_vowel"] += 1
+                    secondary_environment_count += 1
 
                 # Vowel things
 
                 if phone_is_vowel and following_is_vowel:
                     counts["vowel_vowel"] += 1
+                    primary_environment_count += 1
                 if phone_is_vowel and following_phone == 'sil':
                     counts["vowel_sil"] += 1
+                    secondary_environment_count += 1
 
                 # Nasal things
 
@@ -155,14 +194,31 @@ if __name__ == "__main__":
                     counts["sil_ZZH"] += 1
                 if phone == "HH" and previous_phone == 'sil':
                     counts["sil_HH"] += 1
+                    primary_environment_count += 1
+                if phone == "F" and previous_phone == 'sil':
+                    counts["sil_F"] += 1
+                    primary_environment_count += 1
+                if phone == "TH" and previous_phone == 'sil':
+                    counts["sil_TH"] += 1
+                    primary_environment_count += 1
+                if phone == "DH" and previous_phone == 'sil':
+                    counts["sil_DH"] += 1
+                    secondary_environment_count += 1
+                if phone == "V" and previous_phone == 'sil':
+                    counts["sil_V"] += 1
+                    secondary_environment_count += 1
                 if phone == "F" and following_phone == 'sil':
                     counts["F_sil"] += 1
+                    primary_environment_count += 1
                 if phone == "V" and following_phone == 'sil':
                     counts["V_sil"] += 1
+                    primary_environment_count += 1
                 if phone == "TH" and following_phone == 'sil':
                     counts["TH_sil"] += 1
+                    primary_environment_count += 1
                 if phone == "DH" and following_phone == 'sil':
                     counts["DH_sil"] += 1
+                    secondary_environment_count += 1
 
 
                 if i == 0 or i == len(phone_intervals) - 1:
@@ -179,6 +235,8 @@ if __name__ == "__main__":
             data[stem]['has_s'] = has_s
             data[stem]['audio_peaked'] = audio_peaked
             data[stem]['silence_duration'] = silence_duration
+            data[stem]['primary_environment_count'] = primary_environment_count
+            data[stem]['secondary_environment_count'] = secondary_environment_count
 
             data[stem]['silence_intensity'] = silence_intensity_sum / silence_frame_count
             if s_frame_count:
@@ -198,7 +256,8 @@ if __name__ == "__main__":
     print(sorted(phone_counts.items(), key=lambda x: -1*x[1]))
     print(total_count, count_thirty, count_ten, s_file_count, no_surrounding_silence_count)
     with open(output_path, 'w', encoding='utf8', newline='') as f:
-        header = ["file", "speaker", "duration", "silence_duration", "silence_intensity", "s_intensity", "no_surrounding_silence", "has_s", "audio_peaked"] + list(count_headers)
+        header = ["file", "speaker", "duration", "silence_duration", "silence_intensity", "s_intensity", "no_surrounding_silence", "has_s", "audio_peaked", "primary_environment_count", "secondary_environment_count"]
+        header += sorted(count_headers, key=lambda x: count_ordering.get(x, 4))
         writer = csv.DictWriter(f, header)
         writer.writeheader()
         writer.writerows(data.values())
