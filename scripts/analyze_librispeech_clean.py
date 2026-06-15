@@ -5,6 +5,7 @@ import librosa
 import sys
 import csv
 import re
+import random
 import numpy as np
 from praatio import textgrid as tgio
 from splaat.plot.combined import plot_file
@@ -63,6 +64,7 @@ if __name__ == "__main__":
             tg_path = file_path.replace(".wav", ".TextGrid")
             tg = tgio.openTextgrid(tg_path, includeEmptyIntervals=False)
             phone_intervals = tg._tierDict["phones"]._entries
+            word_intervals = tg._tierDict["words"]._entries
             silence_intensity_sum = 0
             silence_frame_count = 0
             counts = collections.Counter()
@@ -119,6 +121,7 @@ if __name__ == "__main__":
                 phone_is_high_back_vowel = high_back_vowel_pattern.match(phone)
                 following_is_vowel = vowel_pattern.match(following_phone)
                 previous_is_vowel = vowel_pattern.match(previous_phone)
+                output_directory = None
                 if phone == 'sil':
                     counts["silence_count"] += 1
                     silence_duration += (pi.end - pi.start)
@@ -132,11 +135,13 @@ if __name__ == "__main__":
                     else:
                         counts["vowel_L"] += 1
                         secondary_environment_count += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "vowel_L")
                 if phone_is_vowel and following_phone == 'R':
                     counts["vowel_R"] += 1
                     primary_environment_count += 1
                     v = re.sub(r'\d', "", phone)
                     counts[f"{v}_R"] += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "vowel_R")
                 if phone_is_vowel and previous_phone == 'Y':
                     if phone_is_high_back_vowel:
                         counts["Y_UWUH"] += 1
@@ -144,6 +149,7 @@ if __name__ == "__main__":
                     else:
                         counts["Y_vowel"] += 1
                         secondary_environment_count += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "consonant_vowel", "Y_vowel")
                 if phone_is_vowel and previous_phone == 'W':
                     if phone_is_high_back_vowel:
                         counts["W_UWUH"] += 1
@@ -151,12 +157,18 @@ if __name__ == "__main__":
                     else:
                         counts["W_vowel"] += 1
                         secondary_environment_count += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "consonant_vowel", "W_vowel")
                 if phone_is_vowel and previous_phone == 'L':
                     counts["L_vowel"] += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "consonant_vowel", "L_vowel")
                     secondary_environment_count += 1
                 if phone_is_vowel and previous_phone == 'R':
                     counts["R_vowel"] += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "consonant_vowel", "R_vowel")
                     secondary_environment_count += 1
+
+                if not phone_is_vowel and not following_is_vowel and "sil" not in {phone, following_phone}:
+                    output_directory = os.path.join(export_directory, "utterance_internal", "consonant_consonant", f"{phone}_{following_phone}")
 
                 # Stop things
                 if phone in voiceless_stops and previous_phone == 'sil':
@@ -179,6 +191,7 @@ if __name__ == "__main__":
                 if phone_is_vowel and following_is_vowel:
                     counts["vowel_vowel"] += 1
                     primary_environment_count += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_vowel", f"{phone}_{following_phone}")
                 if phone_is_vowel and following_phone == 'sil':
                     counts["vowel_sil"] += 1
                     secondary_environment_count += 1
@@ -187,8 +200,22 @@ if __name__ == "__main__":
 
                 if phone in nasals and following_is_vowel:
                     counts["nasal_vowel"] += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "consonant_vowel", "nasal_vowel")
                 if phone_is_vowel and following_phone in nasals:
                     counts["vowel_nasal"] += 1
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "vowel_nasal")
+
+                if phone_is_vowel and following_phone in voiceless_stops | voiced_stops:
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "vowel_stop")
+
+                if following_is_vowel and phone in voiceless_sibilants | voiced_sibilants | {"F", "V", "HH", "DH", "TH"}:
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "vowel_fricative")
+                elif following_is_vowel and phone in voiceless_stops | voiced_stops:
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "stop_vowel")
+
+                elif phone in voiceless_sibilants | voiced_sibilants | {"F", "V", "HH", "DH", "TH"} and following_is_vowel:
+                    output_directory = os.path.join(export_directory, "utterance_internal", "vowel_consonant", "fricative_vowel")
+
 
                 # Fricative things
 
@@ -234,23 +261,37 @@ if __name__ == "__main__":
                     else:
                         no_surrounding_silence = True
                 if i == 1:
-                    output_directory = os.path.join(export_directory, "utterance_initial", f"sil_{following_phone}")
+                    output_directory = os.path.join(export_directory, "utterance_initial", f"sil_{phone}")
+                if i == len(phone_intervals) - 2:
+                    output_directory = os.path.join(export_directory, "utterance_final", f"{phone}_sil")
+                if output_directory is not None:
                     os.makedirs(output_directory, exist_ok=True)
-                    start = max(phone_intervals[i].end - 0.2, 0)
-                    end = min(phone_intervals[i].end + 0.2, duration)
-                    output_path = os.path.join(output_directory, f"{file_name}.png")
-                    fig = plot_file(file_path, tg_path, start=start, end=end)
-                    fig.savefig(output_path, bbox_inches = "tight")
-                    plt.close()
-                if i == len(phone_intervals) - 1:
-                    output_directory = os.path.join(export_directory, "utterance_final", f"{previous_phone}_sil")
-                    os.makedirs(output_directory, exist_ok=True)
-                    start = max(phone_intervals[i].start - 0.2, 0)
-                    end = min(phone_intervals[i].start + 0.2, duration)
-                    output_path = os.path.join(output_directory, f"{file_name}.png")
-                    fig = plot_file(file_path, tg_path, start=start, end=end)
-                    fig.savefig(output_path, bbox_inches = "tight")
-                    plt.close()
+                    existing_files = os.listdir(output_directory)
+                    create_file = True
+                    if len(existing_files) >= 30:
+                        if random.random() < 0.1:
+                            index = random.randint(0, len(existing_files)-1)
+                            os.remove(os.path.join(output_directory, existing_files[index]))
+                        else:
+                            create_file = False
+                    if create_file:
+                        output_path = os.path.join(output_directory, file_name.replace(".wav" ,".png"))
+                        current_word = [x for x in word_intervals if x.start <= phone_intervals[i-1].start < x.end][0]
+                        start = current_word.start
+                        end = current_word.end
+                        if previous_phone is not None:
+                            previous_word = [x for x in word_intervals if x.start <= phone_intervals[i-1].start < x.end][0]
+                            if previous_word != current_word:
+                                start = max(previous_word.start, start - 0.2, 0)
+                        if following_phone is not None:
+                            following_word = [x for x in word_intervals if x.start <= phone_intervals[i+1].start < x.end][0]
+                            if following_word != current_word:
+                                end = min(following_word.end, end + 0.20, duration)
+                        fig = plot_file(file_path, tg_path, start=start, end=end, figure_width=14)
+                        fig.savefig(output_path, bbox_inches = "tight")
+                        plt.close()
+
+
             if no_surrounding_silence:
                 no_surrounding_silence_count += 1
             data[stem]['no_surrounding_silence'] = no_surrounding_silence
