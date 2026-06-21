@@ -46,7 +46,9 @@ everyone_files = c("1995-1837-0012", "237-126133-0015", "3570-5695-0006")
 
 filtered_files = subset(filtered_files, !file %in% everyone_files)
 
-write_csv(subset(file_stats, file %in% everyone_files), "data/everyone_files.csv")
+everyone_files = subset(file_stats, file %in% everyone_files)
+everyone_files$cohort = 0
+write_csv(everyone_files, "data/everyone_files.csv")
 
 overlapped_files = filtered_files %>% arrange(desc(weighting)) %>% slice_head(n=40)
 shuffled_overlappaed = overlapped_files %>% slice_sample(prop=1)
@@ -123,3 +125,9 @@ annotator_analysis = annotator_file_stats %>% subset(!extra) %>% group_by(cohort
 
 annotator_analysis %>% subset(annotator != 0)  %>% group_by(cohort) %>% summarise(total_duration=mean(total_duration), speech_duration=mean(speech_duration), total_weight=mean(total_weight), n())
 
+# Everyone files
+
+everyone_files %>% group_by(cohort)  %>% summarise(total_duration=sum(duration), speech_duration=sum(duration) - sum(silence_duration), total_weight=sum(weighting), n())
+
+# average minutes of audio
+275/60
