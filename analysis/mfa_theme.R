@@ -27,8 +27,11 @@ library(stringr)
 blog_width = 2400
 blog_height =1000
 blog_dpi = 175
+if(.Platform$OS.type == "unix") {
+} else {
+  windowsFonts("Gentium Book Plus" = windowsFont("Gentium Book Plus"))
+}
 
-windowsFonts("Gentium Book Plus" = windowsFont("Gentium Book Plus"))
 
 cbbPalette <- c("#FB5607", "#8338EC", "#FF006E", "#FFBE0B",  "#3A86FF", '#6EC200', '#BA3200', "#009E73")
 

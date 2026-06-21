@@ -26,4 +26,7 @@ if __name__ == "__main__":
             print(line)
             if line['file'] in special_files:
                 continue
-            error
+            data[line['file']] = line
+
+    print(len(data), len(data)/40)
+    error
